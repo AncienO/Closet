@@ -5,6 +5,7 @@ import {databases} from './config';
 import {storage} from './config';
 import { ID, Query } from 'appwrite';
 import { ImageGravity } from 'appwrite';
+import { appendErrors } from 'react-hook-form';
 
 
 
@@ -262,4 +263,175 @@ export async function getRecentPosts() {
 
     return posts
 
+}
+
+export async function likePost(postId: string, likesArray: string[]){
+    try {
+        const updatePost = await databases.updateDocument(
+            appwriteconfig.databaseId,
+            appwriteconfig.postCollectionId,
+            postId,
+            {
+                likes: likesArray
+            }
+        )
+
+        if(!updatePost) throw Error;
+
+        return updatePost
+    } catch (error){
+        console.log(error);
+    }
+}
+
+export async function savePost(postId: string, userId: string){
+    try {
+        const updatePost = await databases.createDocument(
+            appwriteconfig.databaseId,
+            appwriteconfig.savesCollectionId,
+            ID.unique(),
+            {
+                user: userId,
+                post: postId,
+            }
+        )
+
+        if(!updatePost) throw Error;
+
+        return updatePost
+    } catch (error){
+        console.log(error);
+    }
+}
+
+export async function deleteSavedPost(savedRecordId: string){
+    try {
+        const statusCode = await databases.deleteDocument(
+            appwriteconfig.databaseId,
+            appwriteconfig.savesCollectionId,
+            savedRecordId,
+        )
+
+        if(!statusCode) throw Error;
+
+        return { status: 'ok' }
+    } catch (error){
+        console.log(error);
+    }
+}
+
+export async function getUsers(limit?: number) {
+  const queries: any[] = [Query.orderDesc("$createdAt")];
+
+  if (limit) {
+    queries.push(Query.limit(limit));
+  }
+
+  try {
+    const users = await databases.listDocuments(
+      appwriteconfig.databaseId,
+      appwriteconfig.userCollectionId,
+      queries
+    );
+
+    if (!users) throw Error;
+
+    return users;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+export async function getPostById(postId?: string) {
+  if (!postId) throw Error;
+
+  try {
+    const post = await databases.getDocument(
+      appwriteconfig.databaseId,
+      appwriteconfig.postCollectionId,
+      postId
+    );
+
+    if (!post) throw Error;
+
+    return post;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+export async function deletePost(postId?: string, imageId?: string) {
+  if (!postId || !imageId) return;
+
+  try {
+    const statusCode = await databases.deleteDocument(
+      appwriteconfig.databaseId,
+      appwriteconfig.postCollectionId,
+      postId
+    );
+
+    if (!statusCode) throw Error;
+
+    await deleteFile(imageId);
+
+    return { status: "Ok" };
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+export async function getUserPosts(userId?: string) {
+  if (!userId) return;
+
+  try {
+    const post = await databases.listDocuments(
+      appwriteconfig.databaseId,
+      appwriteconfig.postCollectionId,
+      [Query.equal("creator", userId), Query.orderDesc("$createdAt")]
+    );
+
+    if (!post) throw Error;
+
+    return post;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+export async function searchPosts(searchTerm: string) {
+  try {
+    const posts = await databases.listDocuments(
+      appwriteconfig.databaseId,
+      appwriteconfig.postCollectionId,
+      [Query.search("caption", searchTerm)]
+    );
+
+    if (!posts) throw Error;
+
+    return posts;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+export async function getInfinitePosts({ pageParam }: { pageParam: number }) {
+  const queries: any[] = [Query.orderDesc("$updatedAt"), Query.limit(9)];
+
+  if (pageParam) {
+    queries.push(Query.cursorAfter(pageParam.toString()));
+  }
+
+  try {
+    const posts = await databases.listDocuments(
+      appwriteconfig.databaseId,
+      appwriteconfig.postCollectionId,
+      queries
+    );
+
+    if (!posts) throw Error;
+
+    return posts;
+  } catch (error) {
+    console.log(error);
+  }
 }
