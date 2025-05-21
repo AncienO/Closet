@@ -11,7 +11,7 @@ const LeftSideBar = () => {
     const { pathname } = useLocation();
     const {mutate: signOut, isSuccess} = useSignOutAccount();
     const navigate = useNavigate();
-    const { user } = useUserContext();
+    const { user, setUser, setIsAuthenticated, isLoading } = useUserContext();
 
     useEffect(() => {
         if(isSuccess) navigate(0);
@@ -28,6 +28,7 @@ const LeftSideBar = () => {
                     height={36}
                 />
             </Link>
+            
 
             <Link to={`/profile/${user.id}`} className='flex gap-3 items-center'>
                 <img
@@ -69,7 +70,7 @@ const LeftSideBar = () => {
                 </div>
             </Link>
         </div>
-            <Button variant='ghost' className='shad-button_ghost' onClick={()=>signOut}>
+            <Button variant='ghost' className='shad-button_ghost' onClick={()=>signOut()}>
                 <img src='/assets/icons/logout.svg' alt='logout'/>
                 <p className='small-medium lg:base-medium'>Logout</p>
             </Button>

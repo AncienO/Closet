@@ -1,9 +1,8 @@
 import {
-    //useQuery,
     useMutation,
     useQuery,
     useQueryClient,
-    useInfiniteQuery
+    useInfiniteQuery,
 } from '@tanstack/react-query'
 
 import { 
@@ -21,11 +20,15 @@ import {
     getPostById,
     deletePost,
     getUserPosts,
-    searchPosts
+    searchPosts,
+    getUserById,
+    getInfinitePosts,
+    updateUser
     } from '../appwrite/api'
 
-import { INewPost, INewUser, IUpdatePost } from '@/types'
+import { INewPost, INewUser, IUpdatePost, IUpdateUser } from '@/types'
 import { QUERY_KEYS } from './queryKeys';
+import { Models } from "appwrite";
 
 export const useCreateUserAccount = () => {
     return useMutation({
@@ -181,7 +184,8 @@ export const useGetUserPosts = (userId?: string) => {
   });
 };
 
-export const useGetPosts = () => {
+
+{/*export const useGetPosts = () => {
   return useInfiniteQuery({
     queryKey: [QUERY_KEYS.GET_INFINITE_POSTS],
     queryFn: getInfinitePosts as any,
@@ -192,11 +196,24 @@ export const useGetPosts = () => {
       }
 
       // Use the $id of the last document as the cursor.
-      const lastId = lastPage.documents[lastPage?.documents.length - 1].$id;
+      const lastId = lastPage.documents[lastPage.documents.length - 1].$id;
       return lastId;
-        }
-  })
-};
+    },
+  });
+};*/}
+
+export const useGetPosts = () =>
+  useInfiniteQuery<Models.DocumentList<Models.Document>, Error>({
+    queryKey: [QUERY_KEYS.GET_INFINITE_POSTS],
+    queryFn: ({ pageParam = "" }) => getInfinitePosts({ pageParam }),
+    getNextPageParam: (lastPage) => {
+      if (!lastPage || lastPage.documents.length === 0) return null;
+
+      const lastId = lastPage.documents[lastPage.documents.length - 1].$id;
+      return lastId;
+    },
+  });
+
 
 export const useSearchPosts = (searchTerm: string) => {
   return useQuery({
@@ -206,4 +223,26 @@ export const useSearchPosts = (searchTerm: string) => {
   });
 };
 
+export const useGetUserById = (userId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_USER_BY_ID, userId],
+    queryFn: () => getUserById(userId),
+    enabled: !!userId,
+  });
+};
+
+export const useUpdateUser = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (user: IUpdateUser) => updateUser(user),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_CURRENT_USER],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_USER_BY_ID, data?.$id],
+      });
+    },
+  });
+};
 

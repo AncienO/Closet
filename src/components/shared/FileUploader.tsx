@@ -1,6 +1,7 @@
 import {useState, useCallback} from 'react'
 import {useDropzone, FileWithPath} from 'react-dropzone'
 import { Button } from '../ui/button'
+import { convertFileToUrl } from '@/lib/utils';
 
 type FileUploaderProps = {
     fieldChange: (FILES: File[]) => void;
@@ -14,9 +15,9 @@ const FileUploader = ({ fieldChange, mediaUrl}: FileUploaderProps) => {
 
     const onDrop = useCallback((acceptedFiles: FileWithPath[]) => {
         setFile(acceptedFiles);
-        fieldChange(acceptedFiles);
-        setFileUrl(URL.createObjectURL(acceptedFiles[0]))
-    },[file])
+        fieldChange(acceptedFiles); //added 'as File[]'
+        setFileUrl(convertFileToUrl(acceptedFiles[0])) //URL.createObjectURL
+    },[file]) //changed from file to fieldChange
 
     const {getRootProps, getInputProps} = useDropzone({
         onDrop,
@@ -33,7 +34,7 @@ const FileUploader = ({ fieldChange, mediaUrl}: FileUploaderProps) => {
             <>
             <div className='flex flex-1 justify-center w-full p-5 lg:p-10'>
                 <img
-                    src='{fileUrl}'
+                    src={fileUrl}
                     alt='image'
                     className='file_uploader-img'
                 />
@@ -44,7 +45,7 @@ const FileUploader = ({ fieldChange, mediaUrl}: FileUploaderProps) => {
         ):(
             <div className='file_uploader-box'>
                 <img
-                src='/assests/icons/file-upload.svg'
+                src='/assets/icons/file-upload.svg' 
                 width={96}
                 height={77}
                 alt='file-upload'

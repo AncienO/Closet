@@ -1,12 +1,10 @@
 import { account, appwriteconfig } from './config';
-import { INewPost, INewUser, IUpdatePost} from "@/types";
+import { INewPost, INewUser, IUpdatePost, IUpdateUser} from "@/types";
 import {avatars} from './config';
 import {databases} from './config';
 import {storage} from './config';
 import { ID, Query } from 'appwrite';
 import { ImageGravity } from 'appwrite';
-import { appendErrors } from 'react-hook-form';
-
 
 
 export async function createUserAccount(user: INewUser) {
@@ -114,7 +112,13 @@ export async function createPost(post: INewPost){
         if(!uploadedFile) throw Error;
 
         // get file url
-        const fileUrl = getFilePreview(uploadedFile.$id)
+        //const fileUrl = getFilePreview(uploadedFile.$id)
+        const fileUrl = getFilePreview(uploadedFile.$id);
+
+        console.log({fileUrl})
+
+        console.log("fileUrl:", fileUrl, "type:", typeof fileUrl, "length:", fileUrl?.toString().length);
+
 
         if(!fileUrl){
             deleteFile(uploadedFile.$id)
@@ -132,7 +136,7 @@ export async function createPost(post: INewPost){
             {
                 creator: post.userId,
                 caption: post.caption,
-                imageUrl: fileUrl,
+                imageUrl: fileUrl, 
                 imageId: uploadedFile.$id,
                 location: post.location,
                 tags: tags
@@ -143,7 +147,7 @@ export async function createPost(post: INewPost){
             await deleteFile(uploadedFile.$id)
             throw Error;
         }
-        return newPost;
+        return newPost
 
     } catch (error) {
         console.log(error)
@@ -163,7 +167,7 @@ export async function uploadFile(file: File){
     }
 }
 
-export async function getFilePreview(fileId: string) {
+export function getFilePreview(fileId: string) {
     try {
         const fileUrl = storage.getFilePreview(
             appwriteconfig.storageId,
@@ -414,11 +418,11 @@ export async function searchPosts(searchTerm: string) {
   }
 }
 
-export async function getInfinitePosts({ pageParam }: { pageParam: number }) {
+export async function getInfinitePosts({ pageParam = '' }: { pageParam?: unknown }) { // number changed to string 2. changed to  pageParam?: unknown
   const queries: any[] = [Query.orderDesc("$updatedAt"), Query.limit(9)];
 
   if (pageParam) {
-    queries.push(Query.cursorAfter(pageParam.toString()));
+    queries.push(Query.cursorAfter(pageParam.toString())); //pageParam.toString()
   }
 
   try {
@@ -431,6 +435,79 @@ export async function getInfinitePosts({ pageParam }: { pageParam: number }) {
     if (!posts) throw Error;
 
     return posts;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+export async function getUserById(userId: string) {
+  try {
+    const user = await databases.getDocument(
+      appwriteconfig.databaseId,
+      appwriteconfig.userCollectionId,
+      userId
+    );
+
+    if (!user) throw Error;
+
+    return user;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+export async function updateUser(user: IUpdateUser) {
+  const hasFileToUpdate = user.file.length > 0;
+  try {
+    let image = {
+      imageUrl: user.imageUrl,
+      imageId: user.imageId,
+    };
+
+    if (hasFileToUpdate) {
+      // Upload new file to appwrite storage
+      const uploadedFile = await uploadFile(user.file[0]);
+      if (!uploadedFile) throw Error;
+
+      // Get new file url
+      const fileUrl = getFilePreview(uploadedFile.$id);
+      if (!fileUrl) {
+        await deleteFile(uploadedFile.$id);
+        throw Error;
+      }
+
+      image = { ...image, imageUrl: fileUrl, imageId: uploadedFile.$id };
+    }
+
+    //  Update user
+    const updatedUser = await databases.updateDocument(
+      appwriteconfig.databaseId,
+      appwriteconfig.userCollectionId,
+      user.userId,
+      {
+        name: user.name,
+        bio: user.bio,
+        imageUrl: image.imageUrl,
+        imageId: image.imageId,
+      }
+    );
+
+    // Failed to update
+    if (!updatedUser) {
+      // Delete new file that has been recently uploaded
+      if (hasFileToUpdate) {
+        await deleteFile(image.imageId);
+      }
+      // If no new file uploaded, just throw error
+      throw Error;
+    }
+
+    // Safely delete old file after successful update
+    if (user.imageId && hasFileToUpdate) {
+      await deleteFile(user.imageId);
+    }
+
+    return updatedUser;
   } catch (error) {
     console.log(error);
   }
